@@ -1,0 +1,460 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.2.0
+  description: Multi-game P2P Skin Trading API (CS2, TF2, Roblox)
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Steam authentication
+  - name: listings
+    description: Skin listings
+  - name: trades
+    description: Trade offers
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/steam:
+    get:
+      operationId: steamLogin
+      tags: [auth]
+      summary: Initiate Steam OpenID login (redirects to Steam)
+      responses:
+        "302":
+          description: Redirect to Steam login
+
+  /auth/steam/return:
+    get:
+      operationId: steamLoginReturn
+      tags: [auth]
+      summary: Steam OpenID callback (redirects to frontend)
+      responses:
+        "302":
+          description: Redirect back to frontend
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Log out current user
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMeResponse"
+
+  /listings:
+    get:
+      operationId: getListings
+      tags: [listings]
+      summary: Get all active listings
+      parameters:
+        - name: game
+          in: query
+          schema:
+            type: string
+            enum: [CS2, TF2, Roblox]
+        - name: itemType
+          in: query
+          schema:
+            type: string
+        - name: wear
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Listing"
+    post:
+      operationId: createListing
+      tags: [listings]
+      summary: Create a new listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateListingInput"
+      responses:
+        "201":
+          description: Created listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "401":
+          description: Unauthorized
+
+  /listings/{id}:
+    get:
+      operationId: getListing
+      tags: [listings]
+      summary: Get a single listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Listing detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingDetail"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteListing
+      tags: [listings]
+      summary: Delete own listing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /trades:
+    post:
+      operationId: createTrade
+      tags: [trades]
+      summary: Create a skin-for-skin trade offer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTradeInput"
+      responses:
+        "201":
+          description: Created trade
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trade"
+        "401":
+          description: Unauthorized
+
+  /trades/{id}/accept:
+    post:
+      operationId: acceptTrade
+      tags: [trades]
+      summary: Accept a trade offer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Trade accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trade"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /trades/{id}/decline:
+    post:
+      operationId: declineTrade
+      tags: [trades]
+      summary: Decline a trade offer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Trade declined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trade"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /users/{steamId}/listings:
+    get:
+      operationId: getUserListings
+      tags: [listings]
+      summary: Get listings for a user
+      parameters:
+        - name: steamId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Listing"
+
+  /users/{steamId}/trades:
+    get:
+      operationId: getUserTrades
+      tags: [trades]
+      summary: Get trades for a user
+      parameters:
+        - name: steamId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User trades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Trade"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    AuthMeResponse:
+      type: object
+      properties:
+        steamId:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+
+    AuthUser:
+      type: object
+      properties:
+        steamId:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+      required:
+        - steamId
+        - displayName
+        - avatarUrl
+
+    Listing:
+      type: object
+      properties:
+        id:
+          type: integer
+        game:
+          type: string
+          enum: [CS2, TF2, Roblox]
+        skinName:
+          type: string
+        itemType:
+          type: string
+        wear:
+          type: string
+          nullable: true
+        float:
+          type: number
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, traded, cancelled]
+        createdAt:
+          type: string
+          format: date-time
+        seller:
+          $ref: "#/components/schemas/AuthUser"
+      required:
+        - id
+        - game
+        - skinName
+        - itemType
+        - status
+        - createdAt
+        - seller
+
+    ListingDetail:
+      allOf:
+        - $ref: "#/components/schemas/Listing"
+        - type: object
+          properties:
+            trades:
+              type: array
+              items:
+                $ref: "#/components/schemas/Trade"
+          required:
+            - trades
+
+    CreateListingInput:
+      type: object
+      properties:
+        game:
+          type: string
+          enum: [CS2, TF2, Roblox]
+        skinName:
+          type: string
+        itemType:
+          type: string
+        wear:
+          type: string
+          nullable: true
+        float:
+          type: number
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+      required:
+        - game
+        - skinName
+        - itemType
+
+    Trade:
+      type: object
+      properties:
+        id:
+          type: integer
+        listingId:
+          type: integer
+        offeredSkinName:
+          type: string
+        offeredItemType:
+          type: string
+        offeredGame:
+          type: string
+          enum: [CS2, TF2, Roblox]
+        offeredImageUrl:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, accepted, declined]
+        createdAt:
+          type: string
+          format: date-time
+        buyer:
+          $ref: "#/components/schemas/AuthUser"
+        seller:
+          $ref: "#/components/schemas/AuthUser"
+      required:
+        - id
+        - listingId
+        - offeredSkinName
+        - offeredItemType
+        - offeredGame
+        - status
+        - createdAt
+        - buyer
+        - seller
+
+    CreateTradeInput:
+      type: object
+      properties:
+        listingId:
+          type: integer
+        offeredSkinName:
+          type: string
+        offeredItemType:
+          type: string
+        offeredGame:
+          type: string
+          enum: [CS2, TF2, Roblox]
+        offeredImageUrl:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+      required:
+        - listingId
+        - offeredSkinName
+        - offeredItemType
+        - offeredGame
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
